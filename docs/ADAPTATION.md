@@ -145,12 +145,8 @@ Note: this protocol was declared at match 28, past the first checkpoint (match
 | Matches completed | 28 |
 | Total goals | 89 |
 | avg_goals/game | **3.18** |
-| Trigger | **High-scoring** (> 3.0) |
-| Active config | `models/v1-highscore.json` |
-
-The high-scoring trigger fires immediately. All predictions from match 29
-onward use `models/v1-highscore.json` until the next checkpoint (match 32)
-re-evaluates.
+| Trigger | High-scoring (> 3.0) |
+| Active config | `models/v1.json` (see finding below) |
 
 **Limitation:** Declaring the protocol at match 28 rather than before match 1
 means the trigger fires on data already observed. This is acknowledged. The
@@ -160,8 +156,40 @@ tournaments should have this protocol committed before match 1.
 
 ---
 
-## 9. Next Checkpoint
+## 9. Empirical Finding: v1-highscore Underperforms
 
-**After match 32** — re-compute `avg_goals` over all 32 completed matches and
-apply the trigger table. If still > 3.0, continue with `v1-highscore.json`. If
-reverted to 2.2–3.0, switch back to `v1.json`.
+After declaring the protocol, `models/v1-highscore.json` (Dom=2-1, Con=2-1,
+Op=2-1) was evaluated against both held-out datasets before being used for
+live predictions:
+
+| Model | WC2022 | vs baseline | WC2026 (28 games) | vs baseline |
+|---|---|---|---|---|
+| v1 (default) | 55 pts | +7 | 24 pts | -2 |
+| v1-highscore | 49 pts | +1 | 20 pts | -6 |
+
+**v1-highscore is worse on both datasets.** The universal 2-1 canonical loses
+outcome points on Open matches (where v1's 1-0 picks up more 1-pt hits), and
+the exact score gain does not compensate. On WC2026 specifically, the model
+drops 4 pts relative to v1 because fewer matches end with the underdog scoring.
+
+**Decision: the high-scoring trigger does not activate for WC2026.** Active
+config remains `models/v1.json`.
+
+This is a protocol failure — the trigger fired but the adapted config is
+empirically worse. The root cause is that a high tournament avg_goals does not
+uniformly raise scores across all match types; it is driven by blowouts in
+Dominant matches, which do not benefit from predicting an underdog goal (2-1
+vs 2-0). The protocol's canonical shift targets need to be redesigned to be
+category-specific rather than a single uniform scoreline.
+
+**Required fix for next tournament:** The high-scoring canonical target for
+Dominant should remain 2-0 or 3-0 (no underdog goal), while only Contested
+and Open shift toward higher-scoring two-sided results.
+
+---
+
+## 10. Next Checkpoint
+
+**After match 32** — re-compute `avg_goals` over all 32 completed matches.
+Given the finding above, no adaptation will fire unless the canonical targets
+are revised per section 9. Document the match 32 reading here when available.
