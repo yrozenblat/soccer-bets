@@ -16,7 +16,8 @@ A classification-based system for predicting FIFA World Cup match outcomes and e
 8. [Test Results](#8-test-results)
 9. [Predictions: WC2026 Jun 19–21](#9-predictions-wc2026-jun-1921)
 10. [Key Design Decisions](#10-key-design-decisions)
-11. [Limitations](#11-limitations)
+11. [Version History & Leakage Log](#11-version-history--leakage-log)
+12. [Limitations](#12-limitations)
 
 ---
 
@@ -354,7 +355,62 @@ To avoid test-set leakage, the most-common-score baseline is always derived from
 
 ---
 
-## 11. Limitations
+## 11. Version History & Leakage Log
+
+A record of every model version: what data was available at the time of each decision, and what was not. The purpose is to make the leakage boundary explicit and auditable.
+
+### v1_pure — `models/v1_pure.json`
+
+| Decision | When | Data available | Data NOT available |
+|---|---|---|---|
+| Training set = WC2018 | Before optimization | WC2018 results + odds | WC2022, WC2026 |
+| Threshold search space (0.45–0.80) | Before optimization | Domain judgment only | — |
+| Score candidate list | Before optimization | WC historical frequencies | — |
+| t_lower=0.55, t_upper=0.625 | After WC2018 optimization | WC2018 | WC2022, WC2026 |
+| Dom=1-0, Con=2-1, Op=1-0 | After WC2018 optimization | WC2018 | WC2022, WC2026 |
+
+**Leakage status: clean.** No WC2022 or WC2026 data was consulted at any point.
+
+---
+
+### v1 — `models/v1.json`
+
+Inherits all v1_pure decisions. One manual change:
+
+| Decision | When | Data available | Data NOT available | Rationale |
+|---|---|---|---|---|
+| Dom canonical: 1-0 → **2-0** | After v1_pure, before WC2022 evaluation | WC2018 only | WC2022, WC2026 | Historical WC Dominant matches trend toward multi-goal margins; 2-0 is the second most common WC scoreline overall |
+
+**Leakage status: clean.** The Dominant canonical change was made before any WC2022 result was inspected. It was motivated by general WC scoring patterns, not by seeing WC2022 outcomes.
+
+---
+
+### v2 — `models/v2.json`
+
+| Decision | When | Data available | Data NOT available |
+|---|---|---|---|
+| Training set = WC2018 + WC2022 | After WC2022 formal evaluation | WC2018, WC2022 | WC2026 |
+| t_lower=0.45, t_upper=0.65 | After combined optimization | WC2018, WC2022 | WC2026 |
+| Dom=1-0, Con=2-0, Op=2-1 | After combined optimization | WC2018, WC2022 | WC2026 |
+
+**Leakage status: WC2022 is in-sample.** v2 was produced after the formal WC2022 evaluation was complete and its results were known. WC2022 scores for v2 are therefore not valid generalization evidence. v2's WC2022 result (+11 vs baseline) should not be compared directly to v1's WC2022 result (+7 vs baseline).
+
+---
+
+### v1-highscore — `models/v1-highscore.json`
+
+| Decision | When | Data available | Data NOT available |
+|---|---|---|---|
+| Canonical targets (all→2-1) | June 19, 2026 (match 28) | WC2018, WC2022, WC2026 matches 1–28 | WC2026 matches 29+ |
+| Trigger threshold (avg > 3.0) | June 19, 2026 (match 28) | WC2018, WC2022, WC2026 matches 1–28 | WC2026 matches 29+ |
+
+**Leakage status: partial.** Canonical targets were derived from WC2018+WC2022 high-scoring match subsets — not from WC2026 results. However, the trigger threshold was set after observing WC2026's avg_goals (3.18), meaning the threshold was chosen knowing it would fire on the current tournament. Declared as a limitation in `docs/ADAPTATION.md`.
+
+**Evaluation finding:** v1-highscore underperforms v1 on both WC2022 (49 vs 55 pts) and WC2026 (20 vs 24 pts). The high-scoring trigger was not activated for WC2026 predictions. See `docs/ADAPTATION.md` section 9 for root cause.
+
+---
+
+## 12. Limitations
 
 **Small sample:** 64 training matches across three categories produces ~20 matches per category on average. Canonical score selection within a category is statistically fragile.
 
