@@ -1,0 +1,9 @@
+{
+  "t_lower": 0.55,
+  "t_upper": 0.625,
+  "canonical_scores": {
+    "Dominant": [2, 1],
+    "Contested": [2, 1],
+    "Open": [2, 1]
+  }
+}
