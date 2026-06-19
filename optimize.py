@@ -13,7 +13,7 @@ import sys
 from collections import Counter
 from src.data import load_matches
 from src.scoring import score_prediction
-from src.optimizer import optimize, optimize_v3
+from src.optimizer import optimize, optimize_v3, optimize_v4
 from src import model as model_io
 
 # Threshold search space: favorite win probability from 0.45 to 0.80 in 0.025 steps.
@@ -21,6 +21,9 @@ THRESHOLD_VALUES = [round(0.45 + i * 0.025, 3) for i in range(15)]  # 0.450 … 
 
 # v3: draw probability split threshold search space (0.18 to 0.30 in 0.01 steps).
 DRAW_THRESHOLD_VALUES = [round(0.18 + i * 0.01, 2) for i in range(13)]  # 0.18 … 0.30
+
+# v4: implied O/U split threshold search space (2.0 to 3.0 in 0.05 steps).
+OU_THRESHOLD_VALUES = [round(2.0 + i * 0.05, 2) for i in range(21)]  # 2.00 … 3.00
 
 
 # ---------------------------------------------------------------------------
@@ -79,13 +82,17 @@ def baseline_most_common_score(matches: list[dict]) -> int:
 # Main
 # ---------------------------------------------------------------------------
 
-def main(path: str, output_path: str | None = None, v3: bool = False) -> None:
+def main(path: str, output_path: str | None = None, v3: bool = False, v4: bool = False) -> None:
     matches = load_matches(path)
     n = len(matches)
     n_pairs = len(THRESHOLD_VALUES) * (len(THRESHOLD_VALUES) - 1) // 2
     print(f"Loaded {n} matches from {path}")
 
-    if v3:
+    if v4:
+        n_combos = n_pairs * len(OU_THRESHOLD_VALUES)
+        print(f"v4 search: {n_pairs} threshold pairs x {len(OU_THRESHOLD_VALUES)} O/U thresholds = {n_combos} combos")
+        result = optimize_v4(matches, THRESHOLD_VALUES, OU_THRESHOLD_VALUES)
+    elif v3:
         n_combos = n_pairs * len(DRAW_THRESHOLD_VALUES)
         print(f"v3 search: {n_pairs} threshold pairs x {len(DRAW_THRESHOLD_VALUES)} draw thresholds = {n_combos} combos")
         result = optimize_v3(matches, THRESHOLD_VALUES, DRAW_THRESHOLD_VALUES)
@@ -94,7 +101,12 @@ def main(path: str, output_path: str | None = None, v3: bool = False) -> None:
         result = optimize(matches, THRESHOLD_VALUES)
 
     print("\n--- Best configuration (training set) ---")
-    d_tag = f"  d_threshold={result['d_threshold']:.2f}" if v3 else ""
+    if v4:
+        d_tag = f"  ou_threshold={result['ou_threshold']:.2f}"
+    elif v3:
+        d_tag = f"  d_threshold={result['d_threshold']:.2f}"
+    else:
+        d_tag = ""
     print(f"  t_lower={result['t_lower']:.3f}  t_upper={result['t_upper']:.3f}{d_tag}")
     print(f"  Total: {result['total_points']} pts / {n*3} max  ({result['total_points']/n:.2f}/match)")
     print()
@@ -135,5 +147,6 @@ if __name__ == "__main__":
         sys.exit(1)
     args = sys.argv[1:]
     use_v3 = "--v3" in args
-    args = [a for a in args if a != "--v3"]
-    main(args[0], args[1] if len(args) > 1 else None, v3=use_v3)
+    use_v4 = "--v4" in args
+    args = [a for a in args if a not in ("--v3", "--v4")]
+    main(args[0], args[1] if len(args) > 1 else None, v3=use_v3, v4=use_v4)

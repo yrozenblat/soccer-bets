@@ -1,7 +1,7 @@
 from __future__ import annotations
 import itertools
 from .scoring import score_prediction
-from .classifier import classify, CATEGORIES, classify_v3, CATEGORIES_V3
+from .classifier import classify, CATEGORIES, classify_v3, CATEGORIES_V3, classify_v4
 
 # score_candidate_list per category (favorite-relative: fav_goals, und_goals)
 SCORE_CANDIDATES: dict[str, list[tuple[int, int]]] = {
@@ -147,6 +147,52 @@ def optimize_v3(
                     t_lower=t_lower,
                     t_upper=t_upper,
                     d_threshold=d_threshold,
+                    canonical_scores=canonical,
+                    category_counts={c: len(buckets[c]) for c in CATEGORIES_V3},
+                    category_points=cat_pts,
+                    total_points=total,
+                )
+
+    return best
+
+
+def optimize_v4(
+    matches: list[dict],
+    threshold_values: list[float],
+    ou_threshold_values: list[float],
+) -> dict:
+    """
+    v4 joint_optimization: grid search over (t_lower, t_upper, ou_threshold).
+
+    Classifies every match into one of 6 categories using Poisson-implied O/U
+    as the goals-tier split (Hi/Lo). Requires matches to have an 'implied_ou' field.
+    """
+    best: dict | None = None
+    best_pts = -1
+
+    for t_lower, t_upper in itertools.combinations(threshold_values, 2):
+        for ou_threshold in ou_threshold_values:
+            buckets: dict[str, list[dict]] = {c: [] for c in CATEGORIES_V3}
+            for m in matches:
+                cat = classify_v4(m["fav_prob"], m["implied_ou"], t_lower, t_upper, ou_threshold)
+                buckets[cat].append(m)
+
+            canonical: dict[str, tuple[int, int] | None] = {}
+            cat_pts: dict[str, int] = {}
+            total = 0
+            for cat in CATEGORIES_V3:
+                base_cat = cat.split("-")[0]
+                score, pts = _best_canonical_score(buckets[cat], base_cat)
+                canonical[cat] = score
+                cat_pts[cat] = pts
+                total += pts
+
+            if total > best_pts:
+                best_pts = total
+                best = dict(
+                    t_lower=t_lower,
+                    t_upper=t_upper,
+                    ou_threshold=ou_threshold,
                     canonical_scores=canonical,
                     category_counts={c: len(buckets[c]) for c in CATEGORIES_V3},
                     category_points=cat_pts,

@@ -39,3 +39,20 @@ def classify_v3(
     cat = classify(fav_prob, t_lower, t_upper)
     tier = "Hi" if draw_prob < d_threshold else "Lo"
     return f"{cat}-{tier}"
+
+
+def classify_v4(
+    fav_prob: float | None,
+    ou_line: float,
+    t_lower: float,
+    t_upper: float,
+    ou_threshold: float,
+) -> str:
+    """
+    v4 classifier: goals-tier split on Poisson-implied O/U line.
+    ou_line >= ou_threshold → Hi (higher expected goals).
+    ou_line <  ou_threshold → Lo (lower expected goals).
+    """
+    cat = classify(fav_prob, t_lower, t_upper)
+    tier = "Hi" if ou_line >= ou_threshold else "Lo"
+    return f"{cat}-{tier}"

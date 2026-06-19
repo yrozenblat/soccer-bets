@@ -12,7 +12,7 @@ import sys
 from collections import Counter, defaultdict
 from src.data import load_matches
 from src.scoring import score_prediction
-from src.classifier import classify, classify_v3
+from src.classifier import classify, classify_v3, classify_v4
 from src import model as model_io
 
 
@@ -20,13 +20,13 @@ def apply_model(matches: list[dict], cfg: dict) -> tuple[int, list[dict]]:
     t_lower = cfg["t_lower"]
     t_upper = cfg["t_upper"]
     canonical = cfg["canonical_scores"]
-    v3 = model_io.is_v3(cfg)
-    d_threshold = cfg.get("d_threshold")
     details = []
     total = 0
     for m in matches:
-        if v3:
-            cat = classify_v3(m["fav_prob"], m["draw_prob"], t_lower, t_upper, d_threshold)
+        if model_io.is_v4(cfg):
+            cat = classify_v4(m["fav_prob"], m["implied_ou"], t_lower, t_upper, cfg["ou_threshold"])
+        elif model_io.is_v3(cfg):
+            cat = classify_v3(m["fav_prob"], m["draw_prob"], t_lower, t_upper, cfg["d_threshold"])
         else:
             cat = classify(m["fav_prob"], t_lower, t_upper)
         pred = canonical[cat]
@@ -65,8 +65,13 @@ def main(path: str, model_path: str, training_path: str | None = None) -> None:
     training_matches = load_matches(training_path) if training_path else None
     n = len(matches)
 
-    v3_tag = f"  d_threshold={cfg['d_threshold']}" if model_io.is_v3(cfg) else ""
-    print(f"Model : {model_path}  (t_lower={cfg['t_lower']}, t_upper={cfg['t_upper']}{v3_tag})")
+    if model_io.is_v4(cfg):
+        extra = f"  ou_threshold={cfg['ou_threshold']}"
+    elif model_io.is_v3(cfg):
+        extra = f"  d_threshold={cfg['d_threshold']}"
+    else:
+        extra = ""
+    print(f"Model : {model_path}  (t_lower={cfg['t_lower']}, t_upper={cfg['t_upper']}{extra})")
     print(f"Scores: {cfg['canonical_scores']}")
     print(f"Data  : {n} matches from {path}")
     print()

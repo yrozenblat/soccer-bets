@@ -1,5 +1,6 @@
 from __future__ import annotations
 import pandas as pd
+from .poisson import implied_ou as _implied_ou
 
 # Columns expected in the CSV (football-data.co.uk format).
 # Override via keyword args to load_matches() if your CSV differs.
@@ -67,6 +68,7 @@ def load_matches(path: str, **col_overrides) -> list[dict]:
                 away_team=row[cols["away_team"]],
                 fav_prob=fav_prob,
                 draw_prob=draw_prob,
+                implied_ou=_implied_ou(home_prob, draw_prob, away_prob),
                 actual_fav=actual_fav,
                 actual_und=actual_und,
                 home_is_fav=home_is_fav,

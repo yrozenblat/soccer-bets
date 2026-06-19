@@ -23,6 +23,8 @@ def save(cfg: dict, path: str) -> None:
     }
     if "d_threshold" in cfg:
         out["d_threshold"] = cfg["d_threshold"]
+    if "ou_threshold" in cfg:
+        out["ou_threshold"] = cfg["ou_threshold"]
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(out, f, indent=2)
@@ -30,3 +32,6 @@ def save(cfg: dict, path: str) -> None:
 
 def is_v3(cfg: dict) -> bool:
     return "d_threshold" in cfg
+
+def is_v4(cfg: dict) -> bool:
+    return "ou_threshold" in cfg

@@ -11,7 +11,8 @@ Defaults to models/v1.json if no model path given.
 from __future__ import annotations
 import csv
 import sys
-from src.classifier import classify, classify_v3
+from src.classifier import classify, classify_v3, classify_v4
+from src.poisson import implied_ou as _implied_ou
 from src import model as model_io
 
 
@@ -47,7 +48,10 @@ def predict(path: str, model_path: str = "models/v1.json") -> None:
         else:
             fav_prob, home_is_fav = None, True
 
-        if v3:
+        if model_io.is_v4(cfg):
+            ou_line = _implied_ou(ph, pd, pa)
+            cat = classify_v4(fav_prob, ou_line, t_lower, t_upper, cfg["ou_threshold"])
+        elif v3:
             cat = classify_v3(fav_prob, pd, t_lower, t_upper, d_threshold)
         else:
             cat = classify(fav_prob, t_lower, t_upper)
