@@ -12,7 +12,7 @@ import sys
 from collections import Counter, defaultdict
 from src.data import load_matches
 from src.scoring import score_prediction
-from src.classifier import classify
+from src.classifier import classify, classify_v3
 from src import model as model_io
 
 
@@ -20,10 +20,15 @@ def apply_model(matches: list[dict], cfg: dict) -> tuple[int, list[dict]]:
     t_lower = cfg["t_lower"]
     t_upper = cfg["t_upper"]
     canonical = cfg["canonical_scores"]
+    v3 = model_io.is_v3(cfg)
+    d_threshold = cfg.get("d_threshold")
     details = []
     total = 0
     for m in matches:
-        cat = classify(m["fav_prob"], t_lower, t_upper)
+        if v3:
+            cat = classify_v3(m["fav_prob"], m["draw_prob"], t_lower, t_upper, d_threshold)
+        else:
+            cat = classify(m["fav_prob"], t_lower, t_upper)
         pred = canonical[cat]
         pts = score_prediction(pred[0], pred[1], m["actual_fav"], m["actual_und"])
         total += pts
@@ -60,7 +65,8 @@ def main(path: str, model_path: str, training_path: str | None = None) -> None:
     training_matches = load_matches(training_path) if training_path else None
     n = len(matches)
 
-    print(f"Model : {model_path}  (t_lower={cfg['t_lower']}, t_upper={cfg['t_upper']})")
+    v3_tag = f"  d_threshold={cfg['d_threshold']}" if model_io.is_v3(cfg) else ""
+    print(f"Model : {model_path}  (t_lower={cfg['t_lower']}, t_upper={cfg['t_upper']}{v3_tag})")
     print(f"Scores: {cfg['canonical_scores']}")
     print(f"Data  : {n} matches from {path}")
     print()
@@ -71,11 +77,13 @@ def main(path: str, model_path: str, training_path: str | None = None) -> None:
     for d in details:
         by_cat[d["category"]].append(d)
 
-    for cat in ("Dominant", "Contested", "Open"):
+    display_cats = sorted(cfg["canonical_scores"].keys())
+    for cat in display_cats:
         cat_matches = by_cat[cat]
         cat_pts = sum(d["pts"] for d in cat_matches)
         score = cfg["canonical_scores"][cat]
-        print(f"  {cat:10s}: {len(cat_matches):2d} matches  canonical={score[0]}-{score[1]}  pts={cat_pts}")
+        if score:
+            print(f"  {cat:15s}: {len(cat_matches):2d} matches  canonical={score[0]}-{score[1]}  pts={cat_pts}")
 
     print()
     print(f"  Model total: {total} pts / {n*3} max  ({total/n:.2f}/match)")

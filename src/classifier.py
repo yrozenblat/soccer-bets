@@ -1,5 +1,14 @@
 CATEGORIES = ("Dominant", "Contested", "Open")
 
+# v3 categories: each base category split by draw probability into Hi/Lo goals tier.
+# Hi = lower draw_prob → more open/expansive → higher scoring expected.
+# Lo = higher draw_prob → tighter/cagey → lower scoring expected.
+CATEGORIES_V3 = tuple(
+    f"{cat}-{tier}"
+    for cat in CATEGORIES
+    for tier in ("Hi", "Lo")
+)
+
 
 def classify(fav_prob: float | None, t_lower: float, t_upper: float) -> str:
     """
@@ -13,3 +22,20 @@ def classify(fav_prob: float | None, t_lower: float, t_upper: float) -> str:
     if fav_prob < t_upper:
         return "Contested"
     return "Dominant"
+
+
+def classify_v3(
+    fav_prob: float | None,
+    draw_prob: float,
+    t_lower: float,
+    t_upper: float,
+    d_threshold: float,
+) -> str:
+    """
+    v3 classifier: adds a goals-tier split on draw_prob within each base category.
+    draw_prob < d_threshold → Hi (lower draw prob, more expansive scoring).
+    draw_prob >= d_threshold → Lo (higher draw prob, tighter/lower scoring).
+    """
+    cat = classify(fav_prob, t_lower, t_upper)
+    tier = "Hi" if draw_prob < d_threshold else "Lo"
+    return f"{cat}-{tier}"

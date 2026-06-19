@@ -11,7 +11,7 @@ Defaults to models/v1.json if no model path given.
 from __future__ import annotations
 import csv
 import sys
-from src.classifier import classify
+from src.classifier import classify, classify_v3
 from src import model as model_io
 
 
@@ -20,6 +20,8 @@ def predict(path: str, model_path: str = "models/v1.json") -> None:
     t_lower = cfg["t_lower"]
     t_upper = cfg["t_upper"]
     canonical = cfg["canonical_scores"]
+    v3 = model_io.is_v3(cfg)
+    d_threshold = cfg.get("d_threshold")
 
     with open(path, encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
@@ -45,7 +47,10 @@ def predict(path: str, model_path: str = "models/v1.json") -> None:
         else:
             fav_prob, home_is_fav = None, True
 
-        cat = classify(fav_prob, t_lower, t_upper)
+        if v3:
+            cat = classify_v3(fav_prob, pd, t_lower, t_upper, d_threshold)
+        else:
+            cat = classify(fav_prob, t_lower, t_upper)
         fav_goals, und_goals = canonical[cat]
         home_goals = fav_goals if home_is_fav else und_goals
         away_goals = und_goals if home_is_fav else fav_goals
