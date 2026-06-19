@@ -297,11 +297,11 @@ WC2026 uses Polymarket closing prices as odds source. Baselines computed using W
 
 **Why all models fail on WC2026 so far:**
 
-The WC2026 group stage (first 28 matches) is exceptionally lopsided — 26 of 28 matches were won by the pre-match favorite. This means `always_1-0` (a favorite-wins-every-match baseline) lands an outcome hit on nearly every game, scoring 26 pts. No differentiated classification system can beat a baseline that happens to be almost always right about the outcome when the outcome distribution is this extreme.
+The WC2026 group stage (first 28 matches) averaged 3.18 goals per game vs. the 2.60 historical baseline, with several high-scoring blowouts (7–1, 6–0, 4–1). The `always_1-0` baseline scores 26 pts by landing outcome hits on nearly every match, which any differentiated model struggles to beat in a short, lopsided sample.
 
-WC2026 also features several very high-scoring matches (7–1, 6–0, 4–1) which pull the goal average up and reduce exact score hits across all approaches.
+The early sample is not sufficient to invalidate the model — the same configurations pass cleanly on WC2022. But it does highlight a genuine structural limitation: the model's canonical scores and thresholds are fixed at training time and have no mechanism to respond to a tournament environment that diverges significantly from the training distribution. A high-scoring or heavily one-sided group stage will expose this regardless of how well the model is calibrated historically.
 
-This failure is a reflection of WC2026's early-tournament scoring environment, not a structural model failure — the same models pass cleanly on WC2022.
+An adaptation protocol has been defined in `docs/ADAPTATION.md` to address this for future tournaments, though the first candidate adapted config (v1-highscore) was evaluated and found to underperform v1 on both test sets — see that document for the root cause and the required fix.
 
 ---
 
