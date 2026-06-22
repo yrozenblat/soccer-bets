@@ -40,12 +40,16 @@ MATCHES = [
     # ── GROUP F: Netherlands, Japan, Sweden, Tunisia ─────────────────────────
     ("Netherlands",  "Japan",    0.52, 0.26, 0.22, 2, 2),
     ("Sweden",       "Tunisia",  0.67, 0.20, 0.13, 5, 1),
+    # ── GROUP F: Netherlands, Japan, Sweden, Tunisia — round 2 ──────────────
+    ("Japan",    "Tunisia",     0.55, 0.24, 0.21, 4, 0),
     # ── GROUP G: Belgium, Egypt, IR Iran, New Zealand ────────────────────────
     ("Belgium",  "Egypt",       0.58, 0.24, 0.18, 1, 1),
     ("Iran",     "New Zealand", 0.42, 0.28, 0.30, 2, 2),
+    ("Belgium",  "Iran",        0.68, 0.21, 0.12, 0, 0),
     # ── GROUP H: Spain, Saudi Arabia, Uruguay, Cabo Verde ───────────────────
     ("Spain",         "Cabo Verde",  0.85, 0.10, 0.05, 0, 0),
     ("Saudi Arabia",  "Uruguay",     0.30, 0.28, 0.42, 1, 1),
+    ("Spain",         "Saudi Arabia", 0.89, 0.09, 0.038, 4, 0),
     # ── GROUP I: France, Senegal, Norway, Iraq ───────────────────────────────
     ("France",   "Senegal",  0.68, 0.19, 0.13, 3, 1),
     ("Norway",   "Iraq",     0.72, 0.17, 0.11, 4, 1),
