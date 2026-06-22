@@ -1,0 +1,31 @@
+{
+  "t_lower": 0.65,
+  "t_upper": 0.675,
+  "canonical_scores": {
+    "Dominant-Hi": [
+      2,
+      0
+    ],
+    "Dominant-Lo": [
+      1,
+      0
+    ],
+    "Contested-Hi": [
+      2,
+      0
+    ],
+    "Contested-Lo": [
+      2,
+      0
+    ],
+    "Open-Hi": [
+      2,
+      1
+    ],
+    "Open-Lo": [
+      1,
+      0
+    ]
+  },
+  "ou_threshold": 2.7
+}
