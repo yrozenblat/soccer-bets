@@ -103,7 +103,8 @@ Grid search over all valid `(t_lower, t_upper)` pairs × all `score_candidate_li
 |---|---|---|---|
 | WC2018 | 64 | bet365 closing odds (reconstructed) | training_set |
 | WC2022 | 64 | bet365 closing odds (reconstructed) | test_set (held out) |
-| WC2026 (partial) | 28+ | Polymarket closing prices | live evaluation |
+| WC2026 (partial) | 31+ | Polymarket closing prices | live evaluation |
+| Leagues (v2) | 25,381 | bet365 closing odds (14 seasons × 5 leagues) | v6 training_set |
 
 Odds for WC2018 and WC2022 were reconstructed from known pre-match closing lines. WC2026 uses Polymarket prediction market prices as a proxy for implied probabilities. Research shows Polymarket and bookmaker calibration are nearly identical (Brier score ~0.193–0.194), so thresholds trained on bookmaker odds transfer reasonably.
 
@@ -244,6 +245,86 @@ WC2022 scores for v2 are **in-sample** and should not be interpreted as generali
 
 ---
 
+### v3 — `models/v3.json`
+
+Introduces `draw_prob` as a second classification axis (Hi/Lo split within each category). Trained on WC2018.
+
+```json
+{ "t_lower": 0.550, "t_upper": 0.625, "d_threshold": 0.29 }
+```
+
+**Result:** Fails WC2022 generalization. Draw probability range within categories is too narrow (~0.25–0.31 in Open) for a threshold to provide stable signal over 64 training matches.
+
+---
+
+### v4 — `models/v4.json`
+
+Uses Poisson-implied total goals (derived from 1×2 odds via Nelder-Mead lambda fit) as the second classification axis. Trained on WC2018.
+
+```json
+{ "t_lower": 0.550, "t_upper": 0.625, "ou_threshold": 2.45 }
+```
+
+**Result:** Passes WC2022 (+1 vs best baseline) but underperforms v1 (49 vs 55 pts) because the Dominant canonical switches to 1–0.
+
+---
+
+### v5 — `models/v5.json`
+
+Same architecture as v1 (three categories, no O/U dimension). Trained on 10,776 league matches (6 seasons × 5 European leagues).
+
+```json
+{
+  "t_lower": 0.525,
+  "t_upper": 0.650,
+  "canonical_scores": {
+    "Dominant":  [2, 0],
+    "Contested": [2, 1],
+    "Open":      [1, 0]
+  }
+}
+```
+
+**Result:** Same canonical scores as v1. WC2026 (28 matches): 24 pts — identical to v1, confirming league training does not improve on WC-specific optimization for the 3-category model.
+
+---
+
+### v6 — `models/v6.json`
+
+Six-category model trained on 25,381 league matches (14 seasons × 5 European leagues) using real bet365 O/U odds (B365O25/B365U25) where available, Poisson-derived fallback otherwise. First version to incorporate a bookmaker over/under dimension.
+
+```json
+{
+  "t_lower": 0.650,
+  "t_upper": 0.675,
+  "ou_threshold": 2.70,
+  "canonical_scores": {
+    "Dominant-Hi":  [2, 0],
+    "Dominant-Lo":  [1, 0],
+    "Contested-Hi": [2, 0],
+    "Contested-Lo": [2, 0],
+    "Open-Hi":      [2, 1],
+    "Open-Lo":      [1, 0]
+  }
+}
+```
+
+**Training performance (25,381 league matches):** 19,541 pts vs 19,137 best baseline (+404). Beats all four baselines.
+
+**Category split** (training data):
+- Dominant-Hi: 3,274 matches (2–0)
+- Dominant-Lo: 607 matches (1–0)
+- Contested-Hi: 391 matches (2–0)
+- Contested-Lo: 659 matches (2–0)
+- Open-Hi: 3,694 matches (2–1)
+- Open-Lo: 16,756 matches (1–0)
+
+The very narrow Contested band (0.65–0.675) pushes the majority of WC matches into the Open-Lo bucket → 1–0, which limits differentiation but keeps the model above league baselines.
+
+Of the 25,381 training matches, 8,945 (35%) had real B365 O/U odds; the remaining 65% used Poisson-derived O/U.
+
+---
+
 ## 8. Test Results
 
 ### WC2022 — Formal Hold-Out Test
@@ -255,8 +336,17 @@ All three models evaluated on WC2022 (64 matches). Baselines computed using WC20
 | v1_pure | 49 | 0.77 | +1 | 6 | 31 | 27 | **PASS** |
 | v1 | **55** | **0.86** | **+7** | **9** | **28** | 27 | **PASS** |
 | v2* | 59 | 0.92 | +11 | 11 | 26 | 27 | in-sample |
+| v4 | 49 | 0.77 | +1 | — | — | — | **PASS** |
+| v5 | — | — | — | — | — | — | see note |
+| v6 | 49 | 0.77 | +1 | 6 | 31 | 27 | **PASS** |
 
 *v2 is trained on WC2022 data — its score here is not a valid generalization measure.
+
+v4 passes with +1 but uses Poisson-derived O/U; Dominant canonical is 1–0 vs v1's 2–0, losing 6 pts.
+
+v5 (3-category, league training) was not formally evaluated on WC2022 — its thresholds (t_lower=0.525, t_upper=0.65) are identical to v1_pure in practice and expected to match v1_pure's score.
+
+v6 ties v1_pure/v4 at +1 (49 pts). The six-category split offers no WC2022 gain over the three-category baseline — O/U dimension from league data does not improve WC generalization.
 
 **Baselines on WC2022:**
 
@@ -277,24 +367,25 @@ All three models evaluated on WC2022 (64 matches). Baselines computed using WC20
 
 ---
 
-### WC2026 — Live Evaluation (28 matches, as of June 19, 2026)
+### WC2026 — Live Evaluation (31 matches, as of June 21, 2026)
 
-WC2026 uses Polymarket closing prices as odds source. Baselines computed using WC2018+WC2022 most-common score (2–0, n=19).
+WC2026 uses Polymarket closing prices as odds source. Baselines for WC-trained models computed using WC2018+WC2022 most-common score (2–0, n=19). Baselines for league-trained models use league most-common score (1–1, n=2,980).
 
-| Model | Total pts | pts/match | vs best baseline | Exact | Outcome | Miss | Result |
-|---|---|---|---|---|---|---|---|
-| v1_pure | 24 | 0.86 | -2 | 3 | 15 | 10 | **FAIL** |
-| v1 | 24 | 0.86 | -2 | 3 | 15 | 10 | **FAIL** |
-| v2 | 20 | 0.71 | -6 | 1 | 17 | 10 | **FAIL** |
+| Model | Evaluated at | Total pts | pts/match | vs best baseline | Exact | Outcome | Miss | Result |
+|---|---|---|---|---|---|---|---|---|
+| v1_pure | 28 matches | 24 | 0.86 | -2 | 3 | 15 | 10 | **FAIL** |
+| v1 | 28 matches | 24 | 0.86 | -2 | 3 | 15 | 10 | **FAIL** |
+| v2 | 28 matches | 20 | 0.71 | -6 | 1 | 17 | 10 | **FAIL** |
+| v6 | 31 matches | 26 | 0.84 | -2 | 3 | 17 | 11 | **FAIL** |
 
-**Baselines on WC2026 (28 matches):**
+**Baselines on WC2026 (31 matches, v6 evaluation):**
 
 | Baseline | Score |
 |---|---|
-| always_1_0 | 26 pts (0.93/match) |
-| always_1_1 | 24 pts (0.86/match) |
-| market_outcome_fixed | 26 pts (0.93/match) |
-| most_common_from_train (2–0) | 22 pts (0.79/match) |
+| always_1_0 | 28 pts (0.90/match) |
+| always_1_1 | 25 pts (0.81/match) |
+| market_outcome_fixed | 28 pts (0.90/match) |
+| most_common_from_train (1–1, league data) | 25 pts (0.81/match) |
 
 **Why all models fail on WC2026 so far:**
 
@@ -407,6 +498,51 @@ Inherits all v1_pure decisions. One manual change:
 **Leakage status: partial.** Canonical targets were derived from WC2018+WC2022 high-scoring match subsets — not from WC2026 results. However, the trigger threshold was set after observing WC2026's avg_goals (3.18), meaning the threshold was chosen knowing it would fire on the current tournament. Declared as a limitation in `docs/ADAPTATION.md`.
 
 **Evaluation finding:** v1-highscore underperforms v1 on both WC2022 (49 vs 55 pts) and WC2026 (20 vs 24 pts). The high-scoring trigger was not activated for WC2026 predictions. See `docs/ADAPTATION.md` section 9 for root cause.
+
+---
+
+### v3 — `models/v3.json`
+
+| Decision | When | Data available | Data NOT available |
+|---|---|---|---|
+| Second dimension = draw_prob | After v1 | WC2018 | WC2022, WC2026 |
+| d_threshold=0.29 | After WC2018 optimization | WC2018 | WC2022, WC2026 |
+
+**Leakage status: clean.** No WC2022 or WC2026 data consulted. Fails WC2022 generalization due to insufficient draw_prob signal.
+
+---
+
+### v4 — `models/v4.json`
+
+| Decision | When | Data available | Data NOT available |
+|---|---|---|---|
+| Second dimension = Poisson-implied O/U | After v3 failure | WC2018 | WC2022, WC2026 |
+| ou_threshold=2.45 | After WC2018 optimization | WC2018 | WC2022, WC2026 |
+
+**Leakage status: clean.** Passes WC2022 (+1). Poisson model fitted from 1×2 odds — no real O/U data needed.
+
+---
+
+### v5 — `models/v5.json`
+
+| Decision | When | Data available | Data NOT available |
+|---|---|---|---|
+| Training set = 10,776 league matches | June 2026 | Leagues 2018–2024, WC2018 | WC2022 (test remains held out), WC2026 |
+| t_lower=0.525, t_upper=0.650 | After league optimization | League data only | WC2022, WC2026 |
+
+**Leakage status: clean.** WC2022 and WC2026 matches were not in the league training set.
+
+---
+
+### v6 — `models/v6.json`
+
+| Decision | When | Data available | Data NOT available |
+|---|---|---|---|
+| Training set = 25,381 league matches | June 2026 | Leagues 2010–2024 (14 seasons × 5 leagues), bet365 O/U | WC2022 (held out for test), WC2026 matches |
+| t_lower=0.650, t_upper=0.675, ou_threshold=2.70 | After league optimization | League data only | WC2022, WC2026 |
+| Six categories (Dom/Con/Open × Hi/Lo O/U) | Design decision | Domain judgment | — |
+
+**Leakage status: clean.** WC2022 and WC2026 matches 1–31 were entirely unseen during training. League matches do not overlap with World Cup matches.
 
 ---
 
