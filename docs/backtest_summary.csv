@@ -1,0 +1,15 @@
+model,family,params,train_pts,test_pts,test_exact,test_outcome,test_miss,wc2026_pts,loo_train
+always_1-0,P1,-,64,47,5,32,27,54,-
+always_2-0,P1,-,58,57,10,27,27,50,-
+always_2-1,P1,-,60,49,6,31,27,46,-
+always_3-0,P1,-,44,43,3,34,27,50,-
+always_3-1,P1,-,42,43,3,34,27,54,-
+always_1-1,P1,-,32,23,4,11,49,32,-
+always_0-0,P1,-,16,31,8,7,49,26,-
+market_2-1,P1,-,60,49,6,31,27,46,-
+5-bucket,P3,<0.56<0.62<0.77<0.85,72,49,6,31,27,54,-
+draw-specialist,P6,"dt=0.31,gt=0.05,fs=(1, 0)",64,47,5,32,27,54,-
+poisson-ml,P4,most-likely,62,52,8,28,28,63,-
+poisson-ep,P4,max-exp-pts,64,53,8,29,27,62,-
+3-bucket-LOO,P8,LOO,-,-,-,-,-,-,44
+draw-spec-LOO,P8,LOO,-,-,-,-,-,-,51
